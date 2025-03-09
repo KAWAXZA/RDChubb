@@ -1,0 +1,135 @@
+local function isRole(player, roleName)
+    -- Check if the player is a moderator or administrator by their role
+    return player:GetRoleInGroup(33986332) == roleName -- Updated with your actual group ID
+end
+
+local function displayNotification(playerName, playerUserId, lineColor, message, isFlashing)
+    -- Create a new ScreenGui
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+    screenGui.IgnoreGuiInset = true -- Ignore Roblox's built-in GUI inset
+
+    -- Create a frame for the notification
+    local notificationFrame = Instance.new("Frame")
+    notificationFrame.Parent = screenGui
+    notificationFrame.Size = UDim2.new(0, 350, 0, 65) -- Adjusted size to fit avatar
+    notificationFrame.Position = UDim2.new(0.6, -175, -0.2, 0) -- Start off-screen above
+    notificationFrame.AnchorPoint = Vector2.new(0.5, 0) -- Anchor to the top center
+    notificationFrame.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1) -- Lighter black background
+    notificationFrame.BorderSizePixel = 0 -- No border
+    notificationFrame.ClipsDescendants = true -- Hide overflow
+
+    -- Add rounded corners to the notification
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 10) -- Radius for rounded corners
+    corner.Parent = notificationFrame
+
+    -- Add the player's avatar as an ImageLabel
+    local avatarImage = Instance.new("ImageLabel")
+    avatarImage.Parent = notificationFrame
+    avatarImage.Size = UDim2.new(0, 50, 0, 50) -- Square size for the avatar
+    avatarImage.Position = UDim2.new(0, 5, 0.5, -25) -- Centered vertically, left padding
+    avatarImage.BackgroundTransparency = 1 -- Transparent background
+    avatarImage.Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(playerUserId) .. "&w=150&h=150" -- Avatar URL
+
+    -- Make the avatar circular
+    local avatarCorner = Instance.new("UICorner")
+    avatarCorner.CornerRadius = UDim.new(1, 0) -- Fully round
+    avatarCorner.Parent = avatarImage
+
+    -- Add a TextLabel for the player's name and notification
+    local textLabel = Instance.new("TextLabel")
+    textLabel.Parent = notificationFrame
+    textLabel.Size = UDim2.new(1, -65, 1, 0) -- Take up the remaining space beside the avatar
+    textLabel.Position = UDim2.new(0, 65, 0, 0) -- Positioned next to the avatar
+    textLabel.BackgroundTransparency = 1 -- No background
+    textLabel.TextColor3 = Color3.new(1, 1, 1) -- White text
+    textLabel.Font = Enum.Font.SourceSansBold
+    textLabel.TextSize = 20
+    textLabel.Text = message -- Notification text
+    textLabel.TextXAlignment = Enum.TextXAlignment.Left -- Align text to the left
+
+    -- Add a colored line at the bottom of the notification
+    local line = Instance.new("Frame")
+    line.Parent = notificationFrame
+    line.Size = UDim2.new(1, 0, 0, 5) -- Full width, 5 pixels tall
+    line.Position = UDim2.new(0, 0, 1, -5) -- Positioned at the bottom
+    line.BackgroundColor3 = lineColor -- Line color (Cyan for join, Red for leave)
+    line.BorderSizePixel = 0 -- No border
+
+    -- Add rounded corners to the line
+    local lineCorner = Instance.new("UICorner")
+    lineCorner.CornerRadius = UDim.new(0, 5) -- Fully round the line
+    lineCorner.Parent = line
+
+    -- TweenService for animations
+    local TweenService = game:GetService("TweenService")
+
+    -- Tween for drop down
+    local dropTween = TweenService:Create(
+        notificationFrame,
+        TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+        { Position = UDim2.new(0.6, -175, 0, 10) } -- Final position
+    )
+    dropTween:Play()
+
+    dropTween.Completed:Connect(function()
+        -- Flashing effect for Moderators
+        if isFlashing then
+            local flashingTween1 = TweenService:Create(
+                notificationFrame,
+                TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.InOut, -1, true),
+                { BackgroundColor3 = Color3.new(1, 0, 0) } -- Flash Red color
+            )
+            flashingTween1:Play()
+
+            -- Wait for the duration
+            task.wait(5)
+
+            -- Stop the flashing effect after the duration
+            flashingTween1:Cancel()
+            notificationFrame.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1) -- Reset back to original color
+        else
+            -- Wait for the duration (5 seconds)
+            task.wait(5)
+        end
+
+        -- Tween for swoop up
+        local upTween = TweenService:Create(
+            notificationFrame,
+            TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.In),
+            { Position = UDim2.new(0.6, -175, -0.2, 0) } -- Move back up off-screen
+        )
+        upTween:Play()
+
+        upTween.Completed:Connect(function()
+            -- Cleanup after animation
+            screenGui:Destroy()
+        end)
+    end)
+end
+
+-- Connect to PlayerAdded and PlayerRemoving events
+game.Players.PlayerAdded:Connect(function(player)
+    if isRole(player, "Moderator") then
+        displayNotification(player.Name, player.UserId, Color3.new(0, 1, 1), "Moderator: " .. player.Name .. " has joined the game", true) -- Cyan line for join + flashing lights
+    elseif isRole(player, "Administrator") then
+        displayNotification(player.Name, player.UserId, Color3.new(0, 1, 1), "Administrator: " .. player.Name .. " has joined the game", false) -- Cyan line for join
+    else
+        displayNotification(player.Name, player.UserId, Color3.new(0, 1, 1), player.Name .. " has joined the game", false) -- Cyan line for regular join
+    end
+end)
+
+game.Players.PlayerRemoving:Connect(function(player)
+    if isRole(player, "Moderator") then
+        displayNotification(player.Name, player.UserId, Color3.new(1, 0, 0), "Moderator: " .. player.Name .. " has left the game", true) -- Red line for leave + flashing lights
+    elseif isRole(player, "Administrator") then
+        displayNotification(player.Name, player.UserId, Color3.new(1, 0, 0), "Administrator: " .. player.Name .. " has left the game", false) -- Red line for leave
+    else
+        displayNotification(player.Name, player.UserId, Color3.new(1, 0, 0), player.Name .. " has left the game", false) -- Red line for regular leave
+    end
+end)
+
+-- Test Notification at the start with a yellow line, and get the player's avatar image
+local testPlayer = game.Players.LocalPlayer
+displayNotification(testPlayer.Name, testPlayer.UserId, Color3.new(1, 1, 0), "Notification working", false) -- Yellow color for test notification
